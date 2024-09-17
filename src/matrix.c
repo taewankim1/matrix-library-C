@@ -8,6 +8,7 @@
 #include "mat_utils.h"
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define epsilon 1e-9
 
 Matrix* create_matrix(const u32 rows, const u32 cols){
     if (rows <= 0){
@@ -673,6 +674,93 @@ Matrix* hcat_matrices(u32 mnum, Matrix** marr){
             }
             r->data[cols*i+j] = marr[k]->data[marr[k]->cols*i+j-offset];
         }
+    }
+    return r;
+}
+
+int find_pivotidx(Matrix* mat, u32 col, u32 row){
+    u32 num_row = mat->rows;
+    u32 num_col = mat->cols;
+    for(u32 i=row;i<num_row;++i){
+        if (fabs(mat->data[num_col*i + col]) > epsilon) return i;
+    }
+    return -1;
+}
+
+Matrix* row_echelon_form(Matrix* mat){
+    s32 i,j,k;
+    s32 pivot;
+    Matrix* r = copy_matrix(mat);
+    j = 0;
+    i = 0;
+    s32 num_row = mat->rows;
+    s32 num_col = mat->cols;
+    while(i < num_row && j < num_col){
+        pivot = find_pivotidx(r,j,i);
+        if (pivot < 0){
+            // no nonzero element - move to next column
+            j++;
+            continue;
+        }
+        if (pivot != i){
+            swap_row_r(r,i,pivot);
+        }
+        // make the element in the pivot be 1
+        multiply_row_with_scalar_r(r,i,1/r->data[num_col*i+j]);
+        for (k = i + 1; k <num_row;++k){
+            if (fabs(r->data[num_col*k+j]) > epsilon){
+                add_two_rows_r(r,k,i,-(r->data[num_col*k+j]));
+            }
+        }
+        i++;
+        j++;
+    }
+    return r;
+}
+
+int find_pivotmaxidx(Matrix* mat, u32 col, u32 row){
+    u32 num_row = mat->rows;
+    u32 num_col = mat->cols;
+    u32 max_i = row;
+    double max_val = fabs(mat->data[num_col*row+col]);
+    double curr_val;
+    for(u32 i=row;i<num_row;++i){
+        curr_val = fabs(mat->data[num_col*i + col]);
+        if ( curr_val > max_val){
+            max_i = i;
+            max_val = curr_val;
+        }
+    }
+    return (max_val < epsilon) ? -1 : max_i;
+}
+
+Matrix* reduced_row_echelon_form(Matrix* mat){
+    s32 i,j,k;
+    s32 pivot;
+    Matrix* r = copy_matrix(mat);
+    i = 0;
+    j = 0;
+    s32 num_row = mat->rows;
+    s32 num_col = mat->cols;
+    while(i < num_row && j < num_col){
+        pivot = find_pivotmaxidx(r,j,i);
+        if (pivot < 0){
+            // no nonzero element - move to next column
+            j++;
+            continue;
+        }
+        if (pivot != i){
+            swap_row_r(r,i,pivot);
+        }
+        // make the element in the pivot be 1
+        multiply_row_with_scalar_r(r,i,1/r->data[num_col*i+j]);
+        for (k = 0; k <num_row;++k){
+            if (!(k==i)){
+                add_two_rows_r(r,k,i,-(r->data[num_col*k+j]));
+            }
+        }
+        i++;
+        j++;
     }
     return r;
 }

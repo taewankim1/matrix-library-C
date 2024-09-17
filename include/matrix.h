@@ -75,4 +75,9 @@ Matrix* swap_row(Matrix* mat, u32 row1, u32 row2);
 Matrix* vcat_matrices(u32 mnum, Matrix** marr);
 Matrix* hcat_matrices(u32 mnum, Matrix** marr);
 
+int find_pivotidx(Matrix* mat, u32 col, u32 row);
+Matrix* row_echelon_form(Matrix* mat);
+int find_pivotmaxidx(Matrix* mat, u32 col, u32 row);
+Matrix* reduced_row_echelon_form(Matrix* mat);
+
 #endif
