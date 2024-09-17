@@ -79,6 +79,18 @@ Matrix* copy_matrix(const Matrix* a){
     return r;
 }
 
+Matrix* transpose(const Matrix* a) {
+    u32 num_row = a->rows;
+    u32 num_col = a->cols;
+    Matrix* r = create_matrix(num_col,num_row);
+    for (size_t i = 0; i < num_row; ++i) {
+        for (size_t j = 0; j < num_col; ++j) {
+            r->data[num_row*j+i] = a->data[num_col*i+j];
+        }
+    }
+    return r;
+}
+
 bool check_equality(Matrix* m1, Matrix* m2, double tolerance){
     if (m1->rows != m2->rows) return false;
     if (m1->cols != m2->cols) return false;
@@ -763,4 +775,77 @@ Matrix* reduced_row_echelon_form(Matrix* mat){
         j++;
     }
     return r;
+}
+
+LUP* create_LUP(Matrix* L, Matrix* U, Matrix* P, u32 num_permutations){
+    LUP* r = (LUP*) malloc(sizeof(LUP));
+    if (r == NULL){
+        fprintf(stderr,"LUP construction failed\n");
+    }
+    r->L = L;
+    r->U = U;
+    r->P = P;
+    r->num_permutations = num_permutations;
+    return r;
+}
+
+void free_LUP(LUP* lu){
+    free_matrix(lu->P);
+    free_matrix(lu->L);
+    free_matrix(lu->U);
+    free(lu);
+}
+
+int find_absmaxidx(Matrix* mat, u32 col){
+    u32 num_rows = mat->rows;
+    u32 num_cols = mat->cols;
+    size_t i;
+    double max_var = mat->data[num_cols*col + col];
+    double curr_var;
+    int max_idx = col;
+    for(i = col+1;i < num_rows;++i){
+        curr_var = fabs(mat->data[num_cols*i+col]);
+        if (curr_var > max_var){
+            max_var = curr_var;
+            max_idx = i;
+        }
+    }
+    return max_idx;
+}
+
+LUP* solve_lup(Matrix* mat){
+    if (!mat->is_square){
+        fprintf(stderr, "CANNOTL_LU_MATRIX_SQUARE\n");
+        return NULL;
+    }
+    u32 num_rows = mat->rows;
+    u32 num_cols = mat->cols;
+    Matrix* L = create_matrix(num_rows,num_cols);
+    Matrix* U = copy_matrix(mat);
+    Matrix* P = create_identity_matrix(num_rows);
+
+    size_t i,j,pivot;
+    u32 num_permutations = 0;
+    double mult;
+
+    for(j = 0;j < num_cols;++j){
+        pivot = find_absmaxidx(U,j);
+        if (fabs(U->data[num_cols*pivot+j]) < epsilon){
+            fprintf(stderr,"CANNOT_LU_MATRIX_DEGENERATE");
+            return NULL;
+        }
+        if (pivot !=j){
+            swap_row_r(U, j, pivot);
+            swap_row_r(L, j, pivot);
+            swap_row_r(P, j, pivot);
+            num_permutations++;
+        }
+        for(i = j+1; i < num_rows;++i){
+            mult = U->data[num_cols*i+j] / U->data[num_cols*j+j];
+            add_two_rows_r(U,i,j,-mult);
+            L->data[num_cols*i+j] = mult;
+        }
+    }
+    set_diag(L,1.0);
+    return create_LUP(L,U,P,num_permutations);
 }

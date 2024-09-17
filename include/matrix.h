@@ -22,6 +22,13 @@ typedef struct {
     double* data;
 } Matrix;
 
+typedef struct LUP_S {
+    Matrix* L;
+    Matrix* U;
+    Matrix* P;
+    u32 num_permutations;
+} LUP;
+
 Matrix* create_matrix(const u32 rows, const u32 cols);
 void free_matrix(Matrix* mat);
 
@@ -29,6 +36,7 @@ Matrix* create_random_matrix(unsigned int num_rows, unsigned int num_cols, doubl
 Matrix* create_identity_matrix(unsigned int size);
 Matrix* create_matrix_fromfilef(FILE* f);
 Matrix* copy_matrix(const Matrix* a);
+Matrix* transpose(const Matrix* a);
 
 bool check_equality(Matrix* m1, Matrix* m2, double tolerance);
 
@@ -79,5 +87,11 @@ int find_pivotidx(Matrix* mat, u32 col, u32 row);
 Matrix* row_echelon_form(Matrix* mat);
 int find_pivotmaxidx(Matrix* mat, u32 col, u32 row);
 Matrix* reduced_row_echelon_form(Matrix* mat);
+
+LUP* create_LUP(Matrix* L, Matrix* U, Matrix* P, u32 num_permutations);
+void free_LUP(LUP* lu);
+
+int find_absmaxidx(Matrix* mat, u32 k);
+LUP* solve_lup(Matrix* mat);
 
 #endif
