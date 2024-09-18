@@ -849,3 +849,81 @@ LUP* solve_lup(Matrix* mat){
     set_diag(L,1.0);
     return create_LUP(L,U,P,num_permutations);
 }
+
+Matrix* solve_ls_forward(Matrix* L, Matrix* b){
+    if (!L->is_square){
+        fprintf(stderr,"L_IS_NOT_SQAURE_MATRIX");
+    }
+    // u32 num_rows = L->rows;
+    u32 num_cols = L->cols;
+    Matrix* x = create_matrix(num_cols,1);
+    size_t i,j;
+    double tmp;
+    for(i = 0;i<num_cols;++i){
+        if (fabs(L->data[num_cols*i+i])<epsilon){
+            fprintf(stderr,"L_HAS_ZERO_ELEMENT");
+        }
+        tmp = b->data[i];
+        for(j = 0;j<i;++j){
+            tmp -= L->data[num_cols*i+j] * x->data[j];
+        }
+        x->data[i] = tmp / L->data[num_cols*i+i];
+    }
+    return x;
+}
+
+Matrix* solve_ls_backward(Matrix* U, Matrix* b){
+    if (!U->is_square){
+        fprintf(stderr,"U_IS_NOT_SQAURE_MATRIX\n");
+    }
+    // u32 num_rows = U->rows;
+    u32 num_cols = U->cols;
+    Matrix* x = create_matrix(num_cols,1);
+    int i;
+    size_t j;
+    double tmp;
+    for(i = num_cols-1;i>=0;--i){
+        if (fabs(U->data[num_cols*i+i]) < epsilon){
+            fprintf(stderr,"L_HAS_ZERO_ELEMENT i: %d, val: %lf\n",i,U->data[num_cols*i+i]);
+            return NULL;
+        }
+        tmp = b->data[i];
+        for(j = i;j<num_cols;++j){
+            tmp -= U->data[num_cols*i+j] * x->data[j];
+        }
+        x->data[i] = tmp / U->data[num_cols*i+i];
+    }
+    return x;
+}
+
+Matrix* solve_ls_from_lup(LUP* lu, Matrix* b){
+    if(lu == NULL || lu->U->rows != b->rows || b->cols != 1){
+        fprintf(stderr,"CANNOT_SOLVER_LIN_SYS_INVALID_LU_B\n");
+        return NULL;
+    }
+    Matrix* Pb = multiply_matrices(lu->P,b);
+
+    Matrix* y = solve_ls_forward(lu->L,Pb);
+
+    Matrix* x = solve_ls_backward(lu->U,y);
+    if (x == NULL){
+        fprintf(stderr,"SOLVING_LIN_SYS_FAILED\n");
+        return NULL;
+    }
+
+    free_matrix(Pb);
+    free_matrix(y);
+    return x;
+}
+
+Matrix* solve_ls(Matrix* A, Matrix* b){
+    if (!A->is_square){
+        fprintf(stderr,"A is not square\n");
+        return NULL;
+    }
+    LUP* lu = solve_lup(A);
+    Matrix* x = solve_ls_from_lup(lu,b);
+
+    free_LUP(lu);
+    return x;
+}

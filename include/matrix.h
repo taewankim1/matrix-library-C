@@ -94,4 +94,9 @@ void free_LUP(LUP* lu);
 int find_absmaxidx(Matrix* mat, u32 k);
 LUP* solve_lup(Matrix* mat);
 
+Matrix* solve_ls_forward(Matrix* L, Matrix* b);
+Matrix* solve_ls_backward(Matrix* U, Matrix* b);
+Matrix* solve_ls_from_lup(LUP* lu, Matrix* b);
+Matrix* solve_ls(Matrix* A, Matrix* b);
+
 #endif
