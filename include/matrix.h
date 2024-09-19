@@ -29,6 +29,11 @@ typedef struct LUP_S {
     u32 num_permutations;
 } LUP;
 
+typedef struct {
+    Matrix* Q;
+    Matrix* R;
+} QR;
+
 Matrix* create_matrix(const u32 rows, const u32 cols);
 void free_matrix(Matrix* mat);
 
@@ -43,6 +48,7 @@ bool check_equality(Matrix* m1, Matrix* m2, double tolerance);
 void print_matrix(const Matrix* mat);
 
 Matrix* add_matrices(const Matrix* a, const Matrix* b);
+bool subtract_matrices_r(const Matrix* a, const Matrix* b);
 Matrix* subtract_matrices(const Matrix* a, const Matrix* b);
 
 double get_value(const Matrix* mat, const unsigned int row, const unsigned int col);
@@ -98,5 +104,16 @@ Matrix* solve_ls_forward(Matrix* L, Matrix* b);
 Matrix* solve_ls_backward(Matrix* U, Matrix* b);
 Matrix* solve_ls_from_lup(LUP* lu, Matrix* b);
 Matrix* solve_ls(Matrix* A, Matrix* b);
+
+Matrix* inverse(Matrix* A);
+double compute_det(Matrix* A);
+
+double inner_product(Matrix* a, Matrix* b);
+double l2_vec_norm(const Matrix* mat); // l2 vector norm
+
+QR* create_QR(Matrix* Q, Matrix* R);
+void free_QR(QR* qr);
+bool normalize_each_col(Matrix* mat);
+QR* solve_qr(Matrix* mat);
 
 #endif

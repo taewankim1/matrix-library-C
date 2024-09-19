@@ -142,6 +142,20 @@ Matrix* add_matrices(const Matrix* a, const Matrix* b){
     return result;
 }
 
+bool subtract_matrices_r(const Matrix* a, const Matrix* b){
+    if (a->rows != b->rows || a->cols != b->cols) {
+        fprintf(stderr, "Error: Matrices dimensions do not match for addition.\n");
+        return false;
+    }
+
+    int rows = a->rows;
+    int cols = a->cols;
+    for (int i=0;i < rows*cols; i++){
+        a->data[i] = a->data[i] - b->data[i];
+    }
+    return true;
+}
+
 Matrix* subtract_matrices(const Matrix* a, const Matrix* b){
     if (a->rows != b->rows || a->cols != b->cols) {
         fprintf(stderr, "Error: Matrices dimensions do not match for addition.\n");
@@ -922,8 +936,164 @@ Matrix* solve_ls(Matrix* A, Matrix* b){
         return NULL;
     }
     LUP* lu = solve_lup(A);
+    if (lu == NULL){
+        return false;
+    }
     Matrix* x = solve_ls_from_lup(lu,b);
 
     free_LUP(lu);
     return x;
+}
+
+Matrix* inverse(Matrix* A){
+    if (!A->is_square){
+        fprintf(stderr,"A_IS_NOT_SQUARE\n");
+        return false;
+    }
+    LUP* lu = solve_lup(A);
+    if (lu == NULL){
+        return false;
+    }
+    u32 num_rows = A->rows;
+    u32 num_cols = A->rows;
+    Matrix* r = create_matrix(num_rows,num_cols);
+    Matrix* Imat = create_identity_matrix(num_rows);
+    Matrix* invx;
+    Matrix* Ix;
+    size_t i,j;
+    for(j = 0;j<num_cols;++j){
+        Ix = get_col(Imat,j);
+        invx = solve_ls_from_lup(lu,Ix);
+        for(i = 0;i<num_rows;++i){
+            r->data[num_cols*i+j] = invx->data[i];
+        }
+        free_matrix(Ix);
+        free_matrix(invx);
+    }
+    free_matrix(Imat);
+    return r;
+}
+
+double compute_det(Matrix* A){
+    if (!A->is_square){
+        fprintf(stderr,"A_IS_NOT_SQUARE\n");
+        return false;
+    }
+    LUP* lu = solve_lup(A);
+    if (lu == NULL){
+        return false;
+    }
+    int sign = (lu->num_permutations%2==0) ? 1 : -1;
+    u32 num_rows = A->rows;
+    // u32 num_cols = A->rows;
+    double product = 1.0;
+    for(size_t i=0;i<num_rows;++i){
+        product *= lu->U->data[num_rows*i+i]; // this might be too slow
+    }
+    return product * sign;
+}
+
+double inner_product(Matrix* a, Matrix* b){
+    if (a->cols != 1 || b->cols != 1){
+        fprintf(stderr,"A_OR_B_IS_NOT_VECTOR\n");
+        return -1;
+    }
+    if (a->rows != b->rows){
+        fprintf(stderr,"DIMENSION_MISMATCH\n");
+        return -1;
+    }
+    double result = 0.0;
+    u32 num_rows = a->rows;
+    for(size_t i = 0;i<num_rows;++i){
+        result += a->data[i] * b->data[i];
+    }
+    return result;
+}
+
+double l2_vec_norm(const Matrix* a){
+    if(a->cols != 1){
+        fprintf(stderr,"A_IS_NOT_VECTOR\n");
+        return -1;
+    }
+    double result = 0.0;
+    u32 num_rows = a->rows;
+    for(size_t i = 0;i<num_rows;++i){
+        result += a->data[i] * a->data[i]; // accessing memory twice?
+        // TODO - unroll
+    }
+    return sqrt(result);
+}
+
+QR* create_QR(Matrix* Q, Matrix* R){
+    QR* r = (QR*) malloc(sizeof(QR));
+    if (r == NULL){
+        fprintf(stderr,"QR_CONSTRUCTION_FAILED\n");
+        return NULL;
+    }
+    r->Q = Q;
+    r->R = R;
+    return r;
+}
+
+void free_QR(QR* qr){
+    free_matrix(qr->Q);
+    free_matrix(qr->R);
+    free(qr);
+}
+
+bool normalize_each_col(Matrix* mat){
+    // u32 num_rows = mat->rows;
+    u32 num_cols = mat->cols;
+    double norm_col;
+    for(size_t j = 0;j<num_cols;++j){
+        norm_col = l2_vec_norm(get_col(mat,j));
+        if (norm_col == -1){
+            return false;
+        }
+        if (norm_col <= epsilon){
+            fprintf(stderr,"COLUMN_IS_DEGENERATED_(ALMOST_ZERO)\n");
+        }
+        multiply_col_with_scalar_r(mat,j,1/norm_col);
+    }
+    return true;
+}
+
+QR* solve_qr(Matrix* mat){
+    if (!mat->is_square){
+        fprintf(stderr, "CANNOT_QR_MATRIX_NOT_SQUARE\n");
+        return NULL;
+    }
+    u32 num_rows = mat->rows;
+    u32 num_cols = mat->cols;
+
+    Matrix* Q = copy_matrix(mat);
+    Matrix* R = create_matrix(num_rows,num_cols);
+
+    Matrix* aj; // j-th column of mat
+    Matrix* qk;
+    Matrix* qj;
+    double l2norm, product_kj;
+    for(size_t j=0;j<num_cols;++j){
+        product_kj = 0.0;
+        aj = get_col(mat,j);
+        for(size_t k=0;k<j;++k){
+            qk = get_col(Q,k);
+            product_kj = inner_product(aj,qk);
+            R->data[num_cols*k+j] = product_kj;
+            multiply_col_with_scalar_r(qk,0,product_kj);
+            subtract_matrices_r(aj,qk);
+            free_matrix(qk);
+        }
+        for(size_t i = 0;i<num_rows;++i){
+            Q->data[num_cols*i+j] = aj->data[i];
+        }
+        qj = get_col(Q,j);
+        l2norm = l2_vec_norm(qj);
+        multiply_col_with_scalar_r(Q,j,1/l2norm);
+        R->data[num_cols*j+j] = l2norm;
+        free_matrix(qj);
+        free_matrix(aj);
+    }
+    QR* qr = create_QR(Q,R);
+    return qr;
 }
